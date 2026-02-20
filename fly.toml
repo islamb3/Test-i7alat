@@ -1,23 +1,23 @@
-# fly.toml app configuration file generated for ihalat
+# fly.toml app configuration file generated for test-i7alat on 2026-02-20T14:28:14Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = 'ihalat'
-primary_region = 'cdg'
+app = 'test-i7alat'
+primary_region = 'ams'
 
 [build]
-  dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
-  processes = ["app"]
+  min_machines_running = 0
+  processes = ['app']
 
-[[mounts]]
-  source = "bot_data"
-  destination = "/app/data"
-
-[env]
-  PORT = "8080"
-  DATABASE_PATH = "/app/data/bot_database.db"
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256

@@ -13,7 +13,7 @@ except:
 
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@YourChannel")
 VERIFICATION_SERVER_PORT = int(os.getenv("VERIFICATION_PORT", "8080"))
-FINGERPRINT_WEB_URL = os.getenv("FINGERPRINT_WEB_URL", "https://khaledsaleman.github.io/ihalat/")
+FINGERPRINT_WEB_URL = os.getenv("FINGERPRINT_WEB_URL", "https://islamb3.github.io/Test-i7alat/")
 DATABASE_PATH = os.getenv("DATABASE_PATH", "bot_database.db")
 
 if not BOT_TOKEN:

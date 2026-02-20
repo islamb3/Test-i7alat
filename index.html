@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التحقق الأمني - بصمة الجهاز</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://openfpcdn.io/fingerprintjs/v4/iife.min.js"></script>
+
+    <!-- ✅ مكتبات تشغيل TGS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+    <style>
+        /* ===== متغيرات الألوان ===== */
+        :root {
+            --primary: #8774e1;
+            --primary-dark: #6b5baf;
+            --success: #4caf92;
+            --success-dark: #3d8c74;
+            --error: #ff6b6b;
+            --error-dark: #e05252;
+            --warning: #ffb347;
+            --warning-dark: #e69a2e;
+            --dark: #1e1e2f;
+            --light: #f8f9ff;
+            --gray: #6c757d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: radial-gradient(circle at 20% 30%, #1a1a2c, #0f0f1a);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* خلفية متحركة */
+        .gradient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .gradient-bg::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(135, 116, 225, 0.1) 0%, rgba(76, 175, 146, 0.1) 50%, transparent 70%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .glass-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 40px;
+            padding: 50px 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -8px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+            animation: glassFloat 6s ease-in-out infinite;
+        }
+
+        @keyframes glassFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* تأثير الضوء المتحرك */
+        .glass-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: lightMove 15s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes lightMove {
+            0% { transform: translate(-30%, -30%) rotate(0deg); }
+            50% { transform: translate(30%, 30%) rotate(180deg); }
+            100% { transform: translate(-30%, -30%) rotate(360deg); }
+        }
+
+        /* حاوية الملصق - تصميم أنيق */
+        .sticker-wrapper {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px auto;
+            position: relative;
+            cursor: pointer;
+            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .sticker-wrapper:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 15px 30px rgba(135, 116, 225, 0.4));
+        }
+
+        .sticker-wrapper:active {
+            transform: scale(0.95);
+        }
+
+        #duck-animation {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* دائرة التحميل النبضية */
+        .pulse-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            border: 2px solid rgba(135, 116, 225, 0.5);
+            animation: pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulseRing {
+            0% { width: 200px; height: 200px; opacity: 1; border-color: rgba(135, 116, 225, 0.5); }
+            100% { width: 260px; height: 260px; opacity: 0; border-color: rgba(135, 116, 225, 0); }
+        }
+
+        .pulse-ring.success-ring {
+            border-color: rgba(76, 175, 146, 0.5);
+        }
+
+        .pulse-ring.error-ring {
+            border-color: rgba(255, 107, 107, 0.5);
+        }
+
+        /* الشعار */
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .brand-icon {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            transform: rotate(10deg);
+            box-shadow: 0 5px 15px rgba(135, 116, 225, 0.4);
+        }
+
+        .brand-text {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, rgba(255, 255, 255, 0.8));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 8px;
+            font-size: 32px;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 40px;
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        /* حالة التحقق */
+        .status-wrapper {
+            margin: 30px 0 20px;
+            min-height: 80px;
+        }
+
+        .status {
+            padding: 16px 24px;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 18px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+            animation: statusPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes statusPop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .status.loading {
+            background: rgba(135, 116, 225, 0.2);
+            border-bottom: 3px solid var(--primary);
+            color: white;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 146, 0.2);
+            border-bottom: 3px solid var(--success);
+            color: white;
+        }
+
+        .status.error {
+            background: rgba(255, 107, 107, 0.2);
+            border-bottom: 3px solid var(--error);
+            color: white;
+        }
+
+        .status.warning {
+            background: rgba(255, 179, 71, 0.2);
+            border-bottom: 3px solid var(--warning);
+            color: white;
+        }
+
+        .status-icon {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 16px;
+        }
+
+        /* رسالة النتيجة */
+        .result-card {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes slideUp {
+            0% { transform: translateY(30px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        .result-message {
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .result-details {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 20px;
+        }
+
+        /* زر العودة */
+        .back-btn {
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 60px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 20px -5px rgba(135, 116, 225, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .back-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -5px rgba(135, 116, 225, 0.7);
+        }
+
+        .back-btn:hover::before {
+            left: 100%;
+        }
+
+        .back-btn:active {
+            transform: translateY(2px);
+        }
+
+        /* زر إعادة المحاولة */
+        .retry-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 28px;
+            border-radius: 60px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .retry-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* شريط التحميل */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 30px 0 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 10px;
+            animation: progress 2s ease-in-out infinite;
+        }
+
+        @keyframes progress {
+            0% { left: -50%; width: 50%; }
+            100% { left: 100%; width: 50%; }
+        }
+
+        /* تأثير الجسيمات */
+        .particle {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 4s ease-out forwards;
+            z-index: 9999;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x, 100px), var(--y, -100px)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* تأثير الشرر */
+        .sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: sparkle 1s ease-out forwards;
+        }
+
+        @keyframes sparkle {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="gradient-bg"></div>
+
+    <div class="glass-container" id="mainContainer">
+        <!-- العلامة التجارية -->
+        <div class="brand">
+            <div class="brand-icon">🛡️</div>
+            <div class="brand-text">Verify</div>
+        </div>
+
+
+        <h1>التحقق الأمني</h1>
+        <p class="subtitle">  منع التعدد </p>
+
+        <!-- 🦆 حاوية الملصق - حجم كبير وأنيق -->
+        <div class="sticker-wrapper" id="clickEffect">
+            <div class="pulse-ring" id="pulseRing"></div>
+            <div id="duck-animation"></div>
+        </div>
+
+        <!-- حالة التحقق -->
+        <div class="status-wrapper">
+            <div id="status" class="status loading">
+                <span class="status-icon">🔄</span>
+                <span>جاري التحقق من هويتك</span>
+            </div>
+        </div>
+
+        <!-- شريط التحميل (يظهر فقط أثناء التحقق) -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill"></div>
+        </div>
+
+        <!-- نتيجة التحقق -->
+        <div id="result" class="hidden">
+            <div class="result-card" id="resultCard"></div>
+        </div>
+
+        <!-- رسائل التحذير (للأخطاء والحظر) -->
+        <div id="warning" class="hidden"></div>
+
+        <!-- زر إعادة المحاولة -->
+        <button id="retry-btn" class="retry-btn hidden" onclick="location.reload()">
+            <span>🔄</span> إعادة المحاولة
+        </button>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const secret = urlParams.get('secret');
+        const userId = urlParams.get('user_id');
+        const botUsername = urlParams.get('bot') || 'YOUR_BOT_USERNAME';
+
+        // ============ 🎨 تأثيرات متقدمة ============
+
+        // تأثير الدائرة (Reveal Effect)
+        function createRevealEffect(event) {
+            const circle = document.createElement('div');
+            circle.style.cssText = `
+                position: fixed;
+                top: ${event?.clientY || window.innerHeight/2}px;
+                left: ${event?.clientX || window.innerWidth/2}px;
+                width: 0;
+                height: 0;
+                border-radius: 50%;
+                background: rgba(135, 116, 225, 0.3);
+                transform: translate(-50%, -50%);
+                animation: revealExpand 0.8s cubic-bezier(0.2,0.9,0.3,1) forwards;
+                pointer-events: none;
+                z-index: 9999;
+            `;
+            document.body.appendChild(circle);
+
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes revealExpand {
+                    0% { width: 0; height: 0; opacity: 1; }
+                    100% { width: 2000px; height: 2000px; opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+
+            setTimeout(() => {
+                circle.remove();
+                style.remove();
+            }, 800);
+        }
+
+        // تأثير الجسيمات
+        function createParticles(x, y, count = 15, color = '#8774e1') {
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.background = color;
+                particle.style.setProperty('--x', (Math.random() * 200 - 100) + 'px');
+                particle.style.setProperty('--y', (Math.random() * 200 - 100) + 'px');
+                particle.style.animationDelay = Math.random() * 0.5 + 's';
+                document.body.appendChild(particle);
+
+                setTimeout(() => particle.remove(), 4000);
+            }
+        }
+
+        // تأثير الشرر
+        function createSparkles(x, y, count = 8) {
+            for (let i = 0; i < count; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.style.left = x + 'px';
+                sparkle.style.top = y + 'px';
+                sparkle.style.background = `hsl(${Math.random() * 60 + 200}, 80%, 70%)`;
+                sparkle.style.left = (x + (Math.random() - 0.5) * 100) + 'px';
+                sparkle.style.top = (y + (Math.random() - 0.5) * 100) + 'px';
+                document.body.appendChild(sparkle);
+
+                setTimeout(() => sparkle.remove(), 1000);
+            }
+        }
+
+        // تأثير نجاح احتفالي
+        function celebrateSuccess() {
+            const rect = document.querySelector('.sticker-wrapper').getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            createParticles(x, y, 30, '#4caf92');
+            createSparkles(x, y, 20);
+            createRevealEffect({ clientX: x, clientY: y });
+        }
+
+        // تأثير فشل
+        function celebrateError() {
+            const rect = document.querySelector('.sticker-wrapper').getBoundingClientRect();
+            createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, 20, '#ff6b6b');
+        }
+
+        // ============ 🦆 نظام تشغيل TGS المتقدم ============
+
+        let currentAnimation = null;
+
+        async function loadTGSAnimation(url, loop = true) {
+            try {
+                const response = await fetch(url);
+                const buffer = await response.arrayBuffer();
+                const inflated = pako.inflate(new Uint8Array(buffer));
+                const jsonString = new TextDecoder().decode(inflated);
+                const animationData = JSON.parse(jsonString);
+
+                if (currentAnimation) {
+                    currentAnimation.destroy();
+                }
+
+                currentAnimation = lottie.loadAnimation({
+                    container: document.getElementById('duck-animation'),
+                    renderer: 'svg',
+                    loop: loop,
+                    autoplay: true,
+                    animationData: animationData
+                });
+
+                return true;
+            } catch (error) {
+                console.error('❌ فشل تحميل TGS:', error);
+                return false;
+            }
+        }
+
+        // 🦆 التحكم بالبطة
+        function setDuckAnimation(type) {
+            const animations = {
+                waiting: 'stickers/waiting.tgs',
+                success: 'stickers/success.tgs',
+                error: 'stickers/error.tgs',
+                blocked: 'stickers/blocked.tgs',
+                verify: 'stickers/verify.tgs'
+            };
+
+            const url = animations[type] || animations.waiting;
+            const loop = (type === 'waiting' || type === 'verify');
+
+            loadTGSAnimation(url, loop);
+        }
+
+        // تحديث حالة التحقق
+        function updateStatus(type, message) {
+            const status = document.getElementById('status');
+            const pulseRing = document.getElementById('pulseRing');
+
+            status.className = 'status ' + type;
+            pulseRing.className = 'pulse-ring';
+
+            const icons = {
+                loading: '🔄',
+                success: '✅',
+                error: '❌',
+                warning: '⚠️'
+            };
+
+            status.innerHTML = `
+                <span class="status-icon">${icons[type] || '🔄'}</span>
+                <span>${message}</span>
+            `;
+
+            if (type === 'success') {
+                pulseRing.classList.add('success-ring');
+            } else if (type === 'error') {
+                pulseRing.classList.add('error-ring');
+            }
+        }
+
+        // إظهار رسالة خطأ
+        function showError(message) {
+            document.getElementById('spinner')?.remove();
+            document.getElementById('progressBar').classList.add('hidden');
+            updateStatus('error', message);
+            document.getElementById('retry-btn').classList.remove('hidden');
+            setDuckAnimation('error');
+            celebrateError();
+            createRevealEffect();
+        }
+
+        // إظهار رسالة تحذير
+        function showWarning(message) {
+            const warning = document.getElementById('warning');
+            warning.innerHTML = `
+                <div class="result-card" style="border-right: 5px solid var(--warning);">
+                    <div class="result-message">⚠️ تنبيه</div>
+                    <div class="result-details">${message}</div>
+                </div>
+            `;
+            warning.classList.remove('hidden');
+        }
+
+        // ============ دوال البصمة ============
+
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(16).padStart(16, '0');
+        }
+
+        async function getCanvasFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = '#f60';
+                ctx.fillRect(0, 0, 100, 50);
+                ctx.fillStyle = '#069';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText('🛡️', 10, 30);
+                ctx.fillText('DEVICE_FINGERPRINT', 50, 60);
+                ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+                ctx.font = '12px monospace';
+                ctx.fillText(navigator.userAgent, 20, 80);
+                ctx.fillText(navigator.platform, 20, 95);
+
+                return hashString(canvas.toDataURL());
+            } catch (e) {
+                return 'canvas_error_' + Date.now();
+            }
+        }
+
+        async function getWebGLFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl');
+                if (!gl) return 'webgl_unavailable';
+
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                    return hashString(renderer);
+                }
+                return 'webgl_no_debug';
+            } catch (e) {
+                return 'webgl_error';
+            }
+        }
+
+        async function getAudioFingerprint() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const analyser = audioContext.createAnalyser();
+                oscillator.connect(analyser);
+
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(dataArray);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+
+                return hashString(Array.from(dataArray.slice(0, 50)).join(''));
+            } catch (e) {
+                return 'audio_error';
+            }
+
+        }
+
+        async function getUltimateFingerprint() {
+            const [canvas, webgl, audio] = await Promise.all([
+                getCanvasFingerprint(),
+                getWebGLFingerprint(),
+                getAudioFingerprint()
+            ]);
+
+
+
+            const combined = [
+                canvas, webgl, audio,
+                screen.width + 'x' + screen.height,
+                navigator.deviceMemory || 'unknown',
+                navigator.hardwareConcurrency || 'unknown',
+                Intl.DateTimeFormat().resolvedOptions().timeZone
+            ].join('|');
+
+            return { hash: hashString(combined) };
+        }
+
+        async function getIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (e) {
+                return 'unknown';
+            }
+        }
+
+        async function sendToServer(data) {
+            const baseUrl = 'https://ihalat.fly.dev';
+            const response = await fetch(`${baseUrl}/verify-fingerprint`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            return await response.json();
+        }
+
+        // ============ الدالة الرئيسية ============
+
+        async function main() {
+            // إعلام تيليجرام أن التطبيق جاهز
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+            }
+
+            // تأثير البداية
+            createRevealEffect();
+            await setDuckAnimation('waiting');
+            updateStatus('loading', 'جاري التحقق من هويتك');
+
+            if (!secret) {
+                showError('رابط التحقق غير صالح');
+                return;
+            }
+
+            if (!userId) {
+                showError('معرف المستخدم غير موجود');
+                return;
+            }
+
+            try {
+                updateStatus('loading', 'جاري تحليل بصمة الجهاز');
+
+                const fingerprintData = await getUltimateFingerprint();
+                const ip = await getIP();
+
+                updateStatus('loading', 'جاري التحقق من الخادم');
+
+                const result = await sendToServer({
+                    user_id: parseInt(userId),
+                    fingerprint: fingerprintData.hash,
+                    secret: secret,
+                    ip: ip
+                });
+
+                document.getElementById('progressBar').classList.add('hidden');
+                const resultDiv = document.getElementById('result');
+                resultDiv.classList.remove('hidden');
+
+                if (result.success) {
+                    // ✅ نجاح
+                    await setDuckAnimation('success');
+                    updateStatus('success', 'تم التحقق بنجاح!');
+                    celebrateSuccess();
+
+                    document.getElementById('resultCard').innerHTML = `
+                        <div class="result-message">✅ تم التحقق من حسابك</div>
+                        <div class="result-details">تم تسجيل جهازك بنجاح وربطه بحسابك</div>
+                        <button onclick="if(window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.close()" class="back-btn">🔙 العودة إلى البوت</button>
+                    `;
+
+                    // إغلاق تلقائي بعد 3 ثوانٍ
+                    setTimeout(() => {
+                        if (window.Telegram && window.Telegram.WebApp) {
+                            window.Telegram.WebApp.close();
+                        }
+                    }, 3000);
+                } else {
+                    // ❌ فشل
+                    if (result.message.includes('مسجل مسبقاً')) {
+                        await setDuckAnimation('blocked');
+                        updateStatus('error', 'هذا الجهاز مسجل مسبقاً');
+                    } else {
+                        await setDuckAnimation('error');
+                        updateStatus('error', 'فشل التحقق');
+                    }
+                    celebrateError();
+
+                    document.getElementById('resultCard').innerHTML = `
+                        <div class="result-message">❌ ${result.message || 'حدث خطأ في التحقق'}</div>
+                        ${result.details ? `<div class="result-details">${result.details}</div>` : ''}
+                        <button onclick="location.reload()" class="retry-btn">🔄 إعادة المحاولة</button>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('حدث خطأ في الاتصال بالخادم');
+            }
+        }
+
+        // أحداث
+        document.getElementById('clickEffect').addEventListener('click', function(e) {
+            createRevealEffect(e);
+            createSparkles(e.clientX, e.clientY, 12);
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => this.style.transform = 'scale(1)', 200);
+        });
+
+        window.onload = main;
+    </script>
+</body>
+
+</html>

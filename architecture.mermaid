@@ -1,0 +1,36 @@
+graph TD
+    subgraph "Main Application (bot/main.py)"
+        M[Main Loop] --> DP[Dispatcher]
+        M --> WEB[Web Server]
+    end
+
+    subgraph "Handlers (bot/handlers/)"
+        DP --> AH[Admin Handlers]
+        DP --> UH[User Handlers]
+        DP --> HH[Hosted Bot Logic]
+    end
+
+    subgraph "Middlewares (bot/middlewares/)"
+        DP -.-> IM[IP Ban Middleware]
+    end
+
+    subgraph "Services (bot/services/)"
+        AH & UH & HH --> PS[Points Service]
+        AH & UH & HH --> RS[Referral Service]
+        AH & UH & HH --> SM[Settings Manager]
+        AH & UH & HH --> HS[Hosting Service]
+        AH & UH & HH --> SEC[Security Service]
+    end
+
+    subgraph "Database Layer (bot/database/)"
+        PS & RS & SM & HS & SEC --> DB[Connection Pool / aiosqlite]
+    end
+
+    subgraph "Web Server (bot/web/)"
+        WEB --> FH[Fingerprint Verification Handler]
+        FH --> SEC
+    end
+
+    subgraph "Config (bot/config/)"
+        C[Settings/Env] -.-> M & WEB & DB
+    end
